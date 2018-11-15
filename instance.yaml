@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Stack used to deploy EC2 for jenkins configuration
+
+Parameters:
+  AmiId:
+    Type: String
+    Description: Ami id to use
+
+  TypeOfInstance:
+    Type: String
+    Description: Type of instance
+    Default: t2.micro
+
+  KeyPair:
+    Type: String
+    Description: Key pair to access instance via ssh
+    Default: kp-useast1
+
+Resources:
+  EFS:
+    Type: "AWS::EFS::FileSystem"
+
+  MountTargetEFS:
+    Type: "AWS::EFS::MountTarget"
+    Properties:
+      FileSystemId: !Ref EFS
+      SecurityGroups:
+        - !ImportValue EfsMountTargetSG
+      SubnetId: !ImportValue VpcASubnetA
+
+
+  NetworkInterface:
+    Type: "AWS::EC2::NetworkInterface"
+    Properties:
+      Description: Access to Jenkins Master host
+      GroupSet: 
+        - !ImportValue JenkinsSG
+      SubnetId: !ImportValue VpcASubnetA
+
+
+  EC2:
+    Type: "AWS::EC2::Instance"
+    DependsOn: MountTargetEFS
+    Properties:
+      # IamInstanceProfile: arn:aws:iam::054305859799:role/Visitor
+      ImageId: !Ref AmiId
+      InstanceType: !Ref TypeOfInstance
+      KeyName: !Ref KeyPair
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          NetworkInterfaceId: !Ref NetworkInterface
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash -xe
+              sudo yum update -y
+              sudo yum install -y amazon-efs-utils.noarch
+              sudo mkdir /data
+              sudo chmod -R 777 /data 
+
+              echo "${EFS}:/ /data/ efs defaults,_netdev 0 2" | sudo tee -a /etc/fstab
+              sudo mount -a
+            - {}
+
+  AssociateEIP:
+    Type: "AWS::EC2::EIPAssociation"
+    Properties:
+      EIP: !ImportValue "EIPVpcA"
+      InstanceId: !Ref EC2
+      NetworkInterfaceId: !Ref NetworkInterface
+
