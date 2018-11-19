@@ -51,9 +51,9 @@ Resources:
               #!/bin/bash -xe
               sudo useradd jenkins
               sudo yum update -y
-              sudo yum install -y amazon-efs-utils.noarch
-              sudo yum install -y java-1.8.0-openjdk
-              
+              sudo yum install -y amazon-efs-utils.noarch java-1.8.0-openjdk git
+
+
               sudo amazon-linux-extras install docker -y
               sudo systemctl start docker.service
               sudo chmod 777 /var/run/docker.sock
