@@ -19,18 +19,6 @@ Parameters:
     Default: kp-useast1
 
 Resources:
-  EFS:
-    Type: "AWS::EFS::FileSystem"
-
-  MountTargetEFS:
-    Type: "AWS::EFS::MountTarget"
-    Properties:
-      FileSystemId: !Ref EFS
-      SecurityGroups:
-        - !ImportValue EfsMountTargetSG
-      SubnetId: !ImportValue VpcASubnetA
-
-
   NetworkInterface:
     Type: "AWS::EC2::NetworkInterface"
     Properties:
@@ -39,12 +27,17 @@ Resources:
         - !ImportValue JenkinsSG
       SubnetId: !ImportValue VpcASubnetA
 
+  JenkinsIAMProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: /
+      Roles:
+        - JenkinRole
 
   EC2:
     Type: "AWS::EC2::Instance"
-    DependsOn: MountTargetEFS
     Properties:
-      # IamInstanceProfile: arn:aws:iam::054305859799:role/Visitor
+      IamInstanceProfile: !Ref JenkinsIAMProfile
       ImageId: !Ref AmiId
       InstanceType: !Ref TypeOfInstance
       KeyName: !Ref KeyPair
@@ -56,14 +49,27 @@ Resources:
           Fn::Sub:
             - |
               #!/bin/bash -xe
+              sudo useradd jenkins
               sudo yum update -y
               sudo yum install -y amazon-efs-utils.noarch
-              sudo mkdir /data
-              sudo chmod -R 777 /data 
+              sudo yum install -y java-1.8.0-openjdk
+              
+              sudo amazon-linux-extras install docker -y
+              sudo systemctl start docker.service
+              sudo chmod 777 /var/run/docker.sock
 
               echo "${EFS}:/ /data/ efs defaults,_netdev 0 2" | sudo tee -a /etc/fstab
               sudo mount -a
-            - {}
+              sudo install -o jenkins -g jenkins -d /data/jenkins
+              sudo chmod -R 777 /data
+
+              sudo yum update -y
+              sudo wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins.io/redhat/jenkins.repo
+              sudo rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+              sudo yum install jenkins -y
+              sudo sed -i 's/JENKINS_HOME=.*$/JENKINS_HOME="\/data\/jenkins"/g' /etc/sysconfig/jenkins
+              sudo service jenkins start
+            - { EFS: !ImportValue EFS}
 
   AssociateEIP:
     Type: "AWS::EC2::EIPAssociation"
