@@ -52,7 +52,7 @@ Resources:
               sudo useradd jenkins
               sudo yum update -y
               sudo yum install -y amazon-efs-utils.noarch java-1.8.0-openjdk git
-
+              sudo mkdir /data
 
               sudo amazon-linux-extras install docker -y
               sudo systemctl start docker.service
