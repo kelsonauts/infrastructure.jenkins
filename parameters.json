@@ -1,0 +1,10 @@
+[
+	{
+		"ParameterKey": "AmiId",
+		"ParameterValue": "ami-0e6d2e8684d4ccb3e"
+	},
+	{
+		"ParameterKey": "TypeOfInstance",
+		"ParameterValue": "t3.medium"
+	}
+]
